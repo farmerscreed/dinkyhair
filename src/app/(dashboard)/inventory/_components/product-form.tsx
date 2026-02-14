@@ -14,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { ImageUpload } from '@/components/ui/image-upload'
 import { toast } from 'sonner'
 import type { Product, Category, ProductType } from '@/lib/supabase/types'
 
@@ -28,6 +29,7 @@ export function ProductForm({ product, categories }: ProductFormProps) {
   const isEditing = !!product
 
   const [loading, setLoading] = useState(false)
+  const [imageUrl, setImageUrl] = useState<string | null>(product?.image_url || null)
   const [formData, setFormData] = useState({
     name: product?.name || '',
     sku: product?.sku || '',
@@ -65,6 +67,7 @@ export function ProductForm({ product, categories }: ProductFormProps) {
       quantity_in_stock: parseInt(formData.quantity_in_stock) || 0,
       reorder_level: parseInt(formData.reorder_level) || 5,
       is_active: formData.is_active,
+      image_url: imageUrl,
     }
 
     try {
@@ -130,78 +133,88 @@ export function ProductForm({ product, categories }: ProductFormProps) {
             <CardTitle>Basic Information</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-6 md:grid-cols-[200px_1fr]">
               <div className="space-y-2">
-                <Label htmlFor="name">Product Name *</Label>
-                <Input
-                  id="name"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleChange}
-                  required
-                  placeholder="Enter product name"
+                <Label>Product Image</Label>
+                <ImageUpload
+                  value={imageUrl}
+                  onChange={setImageUrl}
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="sku">SKU</Label>
-                <Input
-                  id="sku"
-                  name="sku"
-                  value={formData.sku}
-                  onChange={handleChange}
-                  placeholder="Enter SKU code"
-                />
-              </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Product Name *</Label>
+                  <Input
+                    id="name"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleChange}
+                    required
+                    placeholder="Enter product name"
+                  />
+                </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="product_type">Product Type *</Label>
-                <Select
-                  value={formData.product_type}
-                  onValueChange={(value: ProductType) => {
-                    setFormData(prev => ({
+                <div className="space-y-2">
+                  <Label htmlFor="sku">SKU</Label>
+                  <Input
+                    id="sku"
+                    name="sku"
+                    value={formData.sku}
+                    onChange={handleChange}
+                    placeholder="Enter SKU code"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="product_type">Product Type *</Label>
+                  <Select
+                    value={formData.product_type}
+                    onValueChange={(value: ProductType) => {
+                      setFormData(prev => ({
+                        ...prev,
+                        product_type: value,
+                        category_id: '', // Reset category when type changes
+                      }))
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="raw_material">Raw Material</SelectItem>
+                      <SelectItem value="finished_product">Finished Product</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="category_id">Category</Label>
+                  <Select
+                    value={formData.category_id}
+                    onValueChange={(value) => setFormData(prev => ({
                       ...prev,
-                      product_type: value,
-                      category_id: '', // Reset category when type changes
-                    }))
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="raw_material">Raw Material</SelectItem>
-                    <SelectItem value="finished_product">Finished Product</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="category_id">Category</Label>
-                <Select
-                  value={formData.category_id}
-                  onValueChange={(value) => setFormData(prev => ({
-                    ...prev,
-                    category_id: value
-                  }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {filteredCategories.length === 0 ? (
-                      <SelectItem value="" disabled>
-                        No categories for this type
-                      </SelectItem>
-                    ) : (
-                      filteredCategories.map((category) => (
-                        <SelectItem key={category.id} value={category.id}>
-                          {category.name}
+                      category_id: value
+                    }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {filteredCategories.length === 0 ? (
+                        <SelectItem value="" disabled>
+                          No categories for this type
                         </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
+                      ) : (
+                        filteredCategories.map((category) => (
+                          <SelectItem key={category.id} value={category.id}>
+                            {category.name}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </div>
 

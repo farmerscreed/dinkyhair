@@ -1,4 +1,6 @@
 import Link from 'next/link'
+import Image from 'next/image'
+import { Suspense } from 'react'
 import { createClient } from '@/lib/supabase/server'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -12,16 +14,28 @@ import {
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Plus, Pencil, Package, AlertTriangle, Tags } from 'lucide-react'
+import { Plus, Pencil, Package, AlertTriangle, Tags, Boxes, ImageIcon } from 'lucide-react'
+import { SearchInput } from '@/components/ui/search-input'
 import type { Product, Category } from '@/lib/supabase/types'
 
-export default async function InventoryPage() {
+interface InventoryPageProps {
+  searchParams: Promise<{ q?: string }>
+}
+
+export default async function InventoryPage({ searchParams }: InventoryPageProps) {
+  const { q: searchQuery } = await searchParams
   const supabase = await createClient()
 
-  const { data: products, error: productsError } = await supabase
+  let query = supabase
     .from('products')
     .select('*, category:categories(*)')
     .order('name')
+
+  if (searchQuery) {
+    query = query.or(`name.ilike.%${searchQuery}%,sku.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%`)
+  }
+
+  const { data: products, error: productsError } = await query
 
   const { data: categories, error: categoriesError } = await supabase
     .from('categories')
@@ -46,14 +60,20 @@ export default async function InventoryPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Inventory</h2>
           <p className="text-muted-foreground">
             Manage your products and stock levels
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" asChild>
+            <Link href="/inventory/batches">
+              <Boxes className="mr-2 h-4 w-4" />
+              Batches
+            </Link>
+          </Button>
           <Button variant="outline" asChild>
             <Link href="/inventory/categories">
               <Tags className="mr-2 h-4 w-4" />
@@ -68,6 +88,10 @@ export default async function InventoryPage() {
           </Button>
         </div>
       </div>
+
+      <Suspense fallback={null}>
+        <SearchInput placeholder="Search products by name, SKU..." className="max-w-sm" />
+      </Suspense>
 
       {lowStockProducts.length > 0 && (
         <Card className="border-orange-200 bg-orange-50 dark:border-orange-900 dark:bg-orange-950">
@@ -93,13 +117,14 @@ export default async function InventoryPage() {
         </TabsList>
 
         <TabsContent value="all" className="mt-4">
-          <ProductTable products={products || []} formatCurrency={formatCurrency} />
+          <ProductTable products={products || []} formatCurrency={formatCurrency} searchQuery={searchQuery} />
         </TabsContent>
 
         <TabsContent value="raw_material" className="mt-4">
           <ProductTable
             products={(products || []).filter((p: Product) => p.product_type === 'raw_material')}
             formatCurrency={formatCurrency}
+            searchQuery={searchQuery}
           />
         </TabsContent>
 
@@ -107,6 +132,7 @@ export default async function InventoryPage() {
           <ProductTable
             products={(products || []).filter((p: Product) => p.product_type === 'finished_product')}
             formatCurrency={formatCurrency}
+            searchQuery={searchQuery}
           />
         </TabsContent>
       </Tabs>
@@ -117,9 +143,11 @@ export default async function InventoryPage() {
 function ProductTable({
   products,
   formatCurrency,
+  searchQuery,
 }: {
   products: Product[]
   formatCurrency: (amount: number | null) => string
+  searchQuery?: string
 }) {
   return (
     <Card>
@@ -129,24 +157,30 @@ function ProductTable({
           Products
         </CardTitle>
         <CardDescription>
-          {products.length} product{products.length !== 1 ? 's' : ''} in inventory
+          {products.length} product{products.length !== 1 ? 's' : ''}
+          {searchQuery ? ` matching "${searchQuery}"` : ' in inventory'}
         </CardDescription>
       </CardHeader>
       <CardContent>
         {products.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-center">
-            <p className="text-muted-foreground mb-4">No products found</p>
-            <Button asChild>
-              <Link href="/inventory/new">
-                <Plus className="mr-2 h-4 w-4" />
-                Add Your First Product
-              </Link>
-            </Button>
+            <p className="text-muted-foreground mb-4">
+              {searchQuery ? 'No products match your search' : 'No products found'}
+            </p>
+            {!searchQuery && (
+              <Button asChild>
+                <Link href="/inventory/new">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Your First Product
+                </Link>
+              </Button>
+            )}
           </div>
         ) : (
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-[60px]"></TableHead>
                 <TableHead>Product</TableHead>
                 <TableHead>SKU</TableHead>
                 <TableHead>Category</TableHead>
@@ -160,6 +194,23 @@ function ProductTable({
             <TableBody>
               {products.map((product: Product) => (
                 <TableRow key={product.id}>
+                  <TableCell>
+                    {product.image_url ? (
+                      <div className="relative h-10 w-10 overflow-hidden rounded-md bg-muted">
+                        <Image
+                          src={product.image_url}
+                          alt={product.name}
+                          fill
+                          className="object-cover"
+                          sizes="40px"
+                        />
+                      </div>
+                    ) : (
+                      <div className="flex h-10 w-10 items-center justify-center rounded-md bg-muted">
+                        <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                    )}
+                  </TableCell>
                   <TableCell className="font-medium">{product.name}</TableCell>
                   <TableCell className="text-muted-foreground">
                     {product.sku || '-'}

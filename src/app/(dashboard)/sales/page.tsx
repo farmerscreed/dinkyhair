@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { Suspense } from 'react'
 import { createClient } from '@/lib/supabase/server'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -13,11 +14,18 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Plus, Eye, ShoppingCart } from 'lucide-react'
 import { format } from 'date-fns'
+import { SearchInput } from '@/components/ui/search-input'
 import type { Sale } from '@/lib/supabase/types'
 
-export default async function SalesPage() {
+interface SalesPageProps {
+  searchParams: Promise<{ q?: string }>
+}
+
+export default async function SalesPage({ searchParams }: SalesPageProps) {
+  const { q: searchQuery } = await searchParams
   const supabase = await createClient()
 
+  // First get all sales with customer data
   const { data: sales, error } = await supabase
     .from('sales')
     .select('*, customer:customers(name)')
@@ -26,6 +34,16 @@ export default async function SalesPage() {
 
   if (error) {
     console.error('Error fetching sales:', error)
+  }
+
+  // Filter in-memory for customer name search since we're joining
+  let filteredSales = sales || []
+  if (searchQuery) {
+    const query = searchQuery.toLowerCase()
+    filteredSales = filteredSales.filter((sale: Sale & { customer: { name: string } | null }) =>
+      sale.sale_number?.toLowerCase().includes(query) ||
+      sale.customer?.name?.toLowerCase().includes(query)
+    )
   }
 
   const formatCurrency = (amount: number) => {
@@ -57,7 +75,7 @@ export default async function SalesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Sales</h2>
           <p className="text-muted-foreground">
@@ -72,6 +90,10 @@ export default async function SalesPage() {
         </Button>
       </div>
 
+      <Suspense fallback={null}>
+        <SearchInput placeholder="Search by sale # or customer name..." className="max-w-sm" />
+      </Suspense>
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -79,19 +101,24 @@ export default async function SalesPage() {
             Recent Sales
           </CardTitle>
           <CardDescription>
-            {sales?.length || 0} sale{sales?.length !== 1 ? 's' : ''} recorded
+            {filteredSales.length} sale{filteredSales.length !== 1 ? 's' : ''}
+            {searchQuery ? ` matching "${searchQuery}"` : ' recorded'}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {!sales || sales.length === 0 ? (
+          {filteredSales.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
-              <p className="text-muted-foreground mb-4">No sales recorded yet</p>
-              <Button asChild>
-                <Link href="/sales/new">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Record Your First Sale
-                </Link>
-              </Button>
+              <p className="text-muted-foreground mb-4">
+                {searchQuery ? 'No sales match your search' : 'No sales recorded yet'}
+              </p>
+              {!searchQuery && (
+                <Button asChild>
+                  <Link href="/sales/new">
+                    <Plus className="mr-2 h-4 w-4" />
+                    Record Your First Sale
+                  </Link>
+                </Button>
+              )}
             </div>
           ) : (
             <Table>
@@ -107,7 +134,7 @@ export default async function SalesPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {sales.map((sale: Sale & { customer: { name: string } | null }) => (
+                {filteredSales.map((sale: Sale & { customer: { name: string } | null }) => (
                   <TableRow key={sale.id}>
                     <TableCell className="font-medium font-mono">
                       {sale.sale_number}

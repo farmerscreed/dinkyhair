@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { Suspense } from 'react'
 import { createClient } from '@/lib/supabase/server'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -11,15 +12,27 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Plus, Pencil, Phone, Mail } from 'lucide-react'
+import { SearchInput } from '@/components/ui/search-input'
 import type { Customer } from '@/lib/supabase/types'
 
-export default async function CustomersPage() {
+interface CustomersPageProps {
+  searchParams: Promise<{ q?: string }>
+}
+
+export default async function CustomersPage({ searchParams }: CustomersPageProps) {
+  const { q: searchQuery } = await searchParams
   const supabase = await createClient()
 
-  const { data: customers, error } = await supabase
+  let query = supabase
     .from('customers')
     .select('*')
     .order('name')
+
+  if (searchQuery) {
+    query = query.or(`name.ilike.%${searchQuery}%,phone.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%`)
+  }
+
+  const { data: customers, error } = await query
 
   if (error) {
     console.error('Error fetching customers:', error)
@@ -36,7 +49,7 @@ export default async function CustomersPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Customers</h2>
           <p className="text-muted-foreground">
@@ -51,23 +64,32 @@ export default async function CustomersPage() {
         </Button>
       </div>
 
+      <Suspense fallback={null}>
+        <SearchInput placeholder="Search customers by name, phone, email..." className="max-w-sm" />
+      </Suspense>
+
       <Card>
         <CardHeader>
           <CardTitle>All Customers</CardTitle>
           <CardDescription>
-            {customers?.length || 0} customer{customers?.length !== 1 ? 's' : ''} registered
+            {customers?.length || 0} customer{customers?.length !== 1 ? 's' : ''}
+            {searchQuery ? ` matching "${searchQuery}"` : ' registered'}
           </CardDescription>
         </CardHeader>
         <CardContent>
           {!customers || customers.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
-              <p className="text-muted-foreground mb-4">No customers added yet</p>
-              <Button asChild>
-                <Link href="/customers/new">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add Your First Customer
-                </Link>
-              </Button>
+              <p className="text-muted-foreground mb-4">
+                {searchQuery ? 'No customers match your search' : 'No customers added yet'}
+              </p>
+              {!searchQuery && (
+                <Button asChild>
+                  <Link href="/customers/new">
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Your First Customer
+                  </Link>
+                </Button>
+              )}
             </div>
           ) : (
             <Table>
