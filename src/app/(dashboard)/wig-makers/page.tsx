@@ -136,7 +136,7 @@ export default function WigMakersPage() {
                         </Badge>
                       </TableCell>
                       <TableCell className="max-w-[200px] truncate text-white/60 italic">
-                        {maker.specialty || 'General'}
+                        {maker.specialization || 'General'}
                       </TableCell>
                       <TableCell className="text-white/60">
                         {format(new Date(maker.created_at), 'MMM d, yyyy')}

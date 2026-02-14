@@ -111,7 +111,7 @@ export default function CustomersPage() {
                     <TableHead className="text-white/60 pl-6">Name</TableHead>
                     <TableHead className="text-white/60">Phone</TableHead>
                     <TableHead className="text-white/60">Email</TableHead>
-                    <TableHead className="text-white/60">Preferences</TableHead>
+                    <TableHead className="text-white/60">Notes</TableHead>
                     <TableHead className="text-white/60">Added</TableHead>
                     <TableHead className="text-right text-white/60 pr-6">Actions</TableHead>
                   </TableRow>
@@ -139,7 +139,7 @@ export default function CustomersPage() {
                         )}
                       </TableCell>
                       <TableCell className="max-w-[200px] truncate text-white/60 italic">
-                        {customer.preferences || '-'}
+                        {customer.notes || '-'}
                       </TableCell>
                       <TableCell className="text-white/60">
                         {format(new Date(customer.created_at), 'MMM d, yyyy')}
