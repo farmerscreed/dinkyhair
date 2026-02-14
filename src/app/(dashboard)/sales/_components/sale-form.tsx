@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
@@ -14,17 +14,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
 import { toast } from 'sonner'
-import { Plus, Minus, Trash2, ShoppingCart } from 'lucide-react'
+import { Plus, Minus, Trash2, ShoppingCart, Search, CreditCard, Banknote, Smartphone, Package, CheckCircle2, User, X } from 'lucide-react'
 import type { Product, Customer, PaymentMethod, SalesChannel } from '@/lib/supabase/types'
+import { Badge } from '@/components/ui/badge'
+import { motion, AnimatePresence } from 'framer-motion'
+import { cn } from '@/lib/utils'
 
 interface CartItem {
   product: Product
@@ -44,12 +39,21 @@ export function SaleForm({ products, customers }: SaleFormProps) {
 
   const [loading, setLoading] = useState(false)
   const [cart, setCart] = useState<CartItem[]>([])
-  const [selectedProductId, setSelectedProductId] = useState('')
+  const [searchTerm, setSearchTerm] = useState('')
   const [customerId, setCustomerId] = useState('')
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash')
   const [salesChannel, setSalesChannel] = useState<SalesChannel>('in_store')
   const [discount, setDiscount] = useState('')
   const [notes, setNotes] = useState('')
+
+  const filteredProducts = useMemo(() => {
+    if (!searchTerm) return products
+    const lower = searchTerm.toLowerCase()
+    return products.filter(p =>
+      p.name.toLowerCase().includes(lower) ||
+      p.sku?.toLowerCase().includes(lower)
+    )
+  }, [products, searchTerm])
 
   const subtotal = cart.reduce((sum, item) => sum + item.total_price, 0)
   const discountAmount = parseFloat(discount) || 0
@@ -63,16 +67,10 @@ export function SaleForm({ products, customers }: SaleFormProps) {
     }).format(amount)
   }
 
-  const addToCart = () => {
-    if (!selectedProductId) return
-
-    const product = products.find(p => p.id === selectedProductId)
-    if (!product) return
-
+  const addToCart = (product: Product) => {
     const existingIndex = cart.findIndex(item => item.product.id === product.id)
 
     if (existingIndex >= 0) {
-      // Check stock
       if (cart[existingIndex].quantity >= product.quantity_in_stock) {
         toast.error('Not enough stock')
         return
@@ -91,8 +89,6 @@ export function SaleForm({ products, customers }: SaleFormProps) {
         total_price: price,
       }])
     }
-
-    setSelectedProductId('')
   }
 
   const updateQuantity = (index: number, delta: number) => {
@@ -135,11 +131,9 @@ export function SaleForm({ products, customers }: SaleFormProps) {
     setLoading(true)
 
     try {
-      // Get current user
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('Not authenticated')
 
-      // Create sale
       const { data: sale, error: saleError } = await supabase
         .from('sales')
         .insert({
@@ -157,7 +151,6 @@ export function SaleForm({ products, customers }: SaleFormProps) {
 
       if (saleError) throw saleError
 
-      // Create sale items
       const saleItems = cart.map(item => ({
         sale_id: sale.id,
         product_id: item.product.id,
@@ -172,7 +165,6 @@ export function SaleForm({ products, customers }: SaleFormProps) {
 
       if (itemsError) throw itemsError
 
-      // Update product stock
       for (const item of cart) {
         const { error: stockError } = await supabase
           .from('products')
@@ -186,7 +178,6 @@ export function SaleForm({ products, customers }: SaleFormProps) {
         }
       }
 
-      // Update customer total purchases if customer selected
       if (customerId) {
         const customer = customers.find(c => c.id === customerId)
         if (customer) {
@@ -211,240 +202,183 @@ export function SaleForm({ products, customers }: SaleFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit}>
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Product Selection & Cart */}
-        <div className="lg:col-span-2 space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Add Products</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex gap-2">
-                <Select
-                  value={selectedProductId}
-                  onValueChange={setSelectedProductId}
-                >
-                  <SelectTrigger className="flex-1">
-                    <SelectValue placeholder="Select a product..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {products.map((product) => (
-                      <SelectItem key={product.id} value={product.id}>
-                        {product.name} - {formatCurrency(product.selling_price || 0)} ({product.quantity_in_stock} in stock)
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button type="button" onClick={addToCart} disabled={!selectedProductId}>
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <ShoppingCart className="h-5 w-5" />
-                Cart
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {cart.length === 0 ? (
-                <p className="text-center text-muted-foreground py-8">
-                  No items in cart. Add products above.
-                </p>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Product</TableHead>
-                      <TableHead className="text-center">Quantity</TableHead>
-                      <TableHead className="text-right">Price</TableHead>
-                      <TableHead className="text-right">Total</TableHead>
-                      <TableHead></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {cart.map((item, index) => (
-                      <TableRow key={item.product.id}>
-                        <TableCell className="font-medium">
-                          {item.product.name}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center justify-center gap-2">
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="icon"
-                              className="h-8 w-8"
-                              onClick={() => updateQuantity(index, -1)}
-                            >
-                              <Minus className="h-3 w-3" />
-                            </Button>
-                            <span className="w-8 text-center">{item.quantity}</span>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="icon"
-                              className="h-8 w-8"
-                              onClick={() => updateQuantity(index, 1)}
-                            >
-                              <Plus className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {formatCurrency(item.unit_price)}
-                        </TableCell>
-                        <TableCell className="text-right font-medium">
-                          {formatCurrency(item.total_price)}
-                        </TableCell>
-                        <TableCell>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-destructive"
-                            onClick={() => removeFromCart(index)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
+    <div className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-140px)]">
+      {/* Product Grid Section */}
+      <div className="flex-1 flex flex-col gap-4 min-h-0">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search products..."
+            className="pl-10 h-11 bg-white/5 border-white/10 focus:border-primary/50 text-base"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
         </div>
 
-        {/* Sale Details & Checkout */}
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Sale Details</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label>Customer (Optional)</Label>
-                <Select value={customerId} onValueChange={setCustomerId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Walk-in customer" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">Walk-in customer</SelectItem>
-                    {customers.map((customer) => (
-                      <SelectItem key={customer.id} value={customer.id}>
-                        {customer.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Payment Method *</Label>
-                <Select
-                  value={paymentMethod}
-                  onValueChange={(v) => setPaymentMethod(v as PaymentMethod)}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="cash">Cash</SelectItem>
-                    <SelectItem value="transfer">Bank Transfer</SelectItem>
-                    <SelectItem value="pos">POS</SelectItem>
-                    <SelectItem value="credit">Credit</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Sales Channel</Label>
-                <Select
-                  value={salesChannel}
-                  onValueChange={(v) => setSalesChannel(v as SalesChannel)}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="in_store">In Store</SelectItem>
-                    <SelectItem value="online">Online</SelectItem>
-                    <SelectItem value="wholesale">Wholesale</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Discount (NGN)</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  value={discount}
-                  onChange={(e) => setDiscount(e.target.value)}
-                  placeholder="0"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Notes</Label>
-                <textarea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Optional notes..."
-                  className="flex min-h-[60px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Order Summary</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Subtotal</span>
-                <span>{formatCurrency(subtotal)}</span>
-              </div>
-              {discountAmount > 0 && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Discount</span>
-                  <span className="text-red-600">-{formatCurrency(discountAmount)}</span>
+        <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
+          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 pb-4">
+            {filteredProducts.map((product) => (
+              <motion.button
+                key={product.id}
+                layout
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => addToCart(product)}
+                className="text-left group relative flex flex-col items-start p-4 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 hover:border-primary/50 transition-all duration-200"
+              >
+                <div className="absolute top-2 right-2">
+                  <Badge variant={product.quantity_in_stock <= product.reorder_level ? "destructive" : "secondary"} className="text-xs px-1.5 py-0.5 h-auto">
+                    {product.quantity_in_stock}
+                  </Badge>
                 </div>
-              )}
-              <div className="flex justify-between border-t pt-2 text-lg font-bold">
-                <span>Total</span>
-                <span>{formatCurrency(total)}</span>
+
+                <div className="mb-3 p-3 rounded-full bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors self-center">
+                  <Package className="h-6 w-6" />
+                </div>
+
+                <div className="w-full">
+                  <h3 className="font-semibold text-sm line-clamp-2 mb-1 group-hover:text-primary transition-colors">{product.name}</h3>
+                  <p className="text-sm font-bold text-muted-foreground group-hover:text-foreground transition-colors">
+                    {formatCurrency(product.selling_price || 0)}
+                  </p>
+                </div>
+              </motion.button>
+            ))}
+
+            {filteredProducts.length === 0 && (
+              <div className="col-span-full flex flex-col items-center justify-center p-8 text-muted-foreground">
+                <Package className="h-10 w-10 mb-2 opacity-20" />
+                <p>No products found</p>
               </div>
-            </CardContent>
-            <CardFooter className="flex-col gap-2">
-              <Button
-                type="submit"
-                className="w-full"
-                size="lg"
-                disabled={loading || cart.length === 0}
-              >
-                {loading ? 'Processing...' : `Complete Sale - ${formatCurrency(total)}`}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full"
-                onClick={() => router.back()}
-                disabled={loading}
-              >
-                Cancel
-              </Button>
-            </CardFooter>
-          </Card>
+            )}
+          </div>
         </div>
       </div>
-    </form>
+
+      {/* Cart & Checkout Section */}
+      <div className="w-full lg:w-[400px] flex flex-col gap-4 h-full">
+        <Card className="flex flex-col h-full bg-card/80 backdrop-blur-xl border-white/10 shadow-2xl">
+          <CardHeader className="pb-3 border-b border-white/10">
+            <CardTitle className="flex items-center justify-between text-lg">
+              <span className="flex items-center gap-2">
+                <ShoppingCart className="h-5 w-5 text-primary" />
+                Current Sale
+              </span>
+              <Badge variant="outline" className="text-xs font-normal border-primary/20 bg-primary/5 text-primary">
+                {cart.reduce((sum, item) => sum + item.quantity, 0)} Items
+              </Badge>
+            </CardTitle>
+          </CardHeader>
+
+          <CardContent className="flex-1 overflow-y-auto p-0 scrollbar-hide">
+            {cart.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-muted-foreground p-6">
+                <ShoppingCart className="h-12 w-12 mb-3 opacity-10" />
+                <p className="text-center text-sm">Cart is empty.<br />Select products to start.</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-white/5">
+                <AnimatePresence initial={false}>
+                  {cart.map((item, index) => (
+                    <motion.div
+                      key={item.product.id}
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0, transition: { duration: 0.2 } }}
+                      className="flex items-center justify-between p-4 hover:bg-white/5 transition-colors"
+                    >
+                      <div className="flex-1 min-w-0 pr-4">
+                        <h4 className="font-medium text-sm truncate mb-1">{item.product.name}</h4>
+                        <p className="text-xs text-muted-foreground">{formatCurrency(item.unit_price)} × {item.quantity}</p>
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center rounded-md border border-white/10 bg-black/20">
+                          <button
+                            type="button"
+                            onClick={() => updateQuantity(index, -1)}
+                            className="p-1 hover:bg-white/10 hover:text-red-400 transition-colors"
+                          >
+                            <Minus className="h-3 w-3" />
+                          </button>
+                          <span className="w-6 text-center text-xs font-medium">{item.quantity}</span>
+                          <button
+                            type="button"
+                            onClick={() => updateQuantity(index, 1)}
+                            className="p-1 hover:bg-white/10 hover:text-green-400 transition-colors"
+                          >
+                            <Plus className="h-3 w-3" />
+                          </button>
+                        </div>
+                        <p className="font-bold text-sm min-w-[60px] text-right">{formatCurrency(item.total_price)}</p>
+                      </div>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+              </div>
+            )}
+          </CardContent>
+
+          <div className="p-4 border-t border-white/10 bg-black/20 space-y-4">
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <Select value={customerId} onValueChange={setCustomerId}>
+                  <SelectTrigger className="bg-white/5 border-white/10 h-9 text-xs">
+                    <div className="flex items-center truncate">
+                      <User className="h-3 w-3 mr-2 opacity-70" />
+                      <span className="truncate">{customerId ? customers.find(c => c.id === customerId)?.name : "Walk-in Customer"}</span>
+                    </div>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Walk-in Customer</SelectItem>
+                    {customers.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+
+                <Select value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as PaymentMethod)}>
+                  <SelectTrigger className="bg-white/5 border-white/10 h-9 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="cash"><div className="flex items-center"><Banknote className="h-3 w-3 mr-2" />Cash</div></SelectItem>
+                    <SelectItem value="transfer"><div className="flex items-center"><Smartphone className="h-3 w-3 mr-2" />Transfer</div></SelectItem>
+                    <SelectItem value="pos"><div className="flex items-center"><CreditCard className="h-3 w-3 mr-2" />POS</div></SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex items-center justify-between text-muted-foreground text-sm">
+                <span>Subtotal</span>
+                <span>{formatCurrency(subtotal)}</span>
+              </div>
+
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-sm text-muted-foreground shrink-0">Discount</span>
+                <Input
+                  type="number"
+                  value={discount}
+                  onChange={e => setDiscount(e.target.value)}
+                  placeholder="0"
+                  className="h-7 w-24 text-right bg-white/5 border-white/10 text-xs p-1"
+                />
+              </div>
+
+              <div className="flex items-center justify-between font-bold text-lg pt-2 border-t border-white/10">
+                <span>Total</span>
+                <span className="text-primary tracking-tight">{formatCurrency(total)}</span>
+              </div>
+            </div>
+
+            <Button
+              onClick={handleSubmit}
+              className="w-full bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 text-white shadow-lg shadow-primary/25 h-12 text-base font-bold tracking-wide"
+              disabled={loading || cart.length === 0}
+            >
+              {loading ? 'Processing...' : 'Complete Sale'}
+            </Button>
+          </div>
+        </Card>
+      </div>
+    </div>
   )
 }

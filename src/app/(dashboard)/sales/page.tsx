@@ -12,7 +12,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Eye, ShoppingCart } from 'lucide-react'
+import { Plus, Eye, ShoppingCart, Search, CreditCard, Banknote, Smartphone, Globe, Store } from 'lucide-react'
 import { format } from 'date-fns'
 import { SearchInput } from '@/components/ui/search-input'
 import type { Sale } from '@/lib/supabase/types'
@@ -64,6 +64,15 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
     }
   }
 
+  const getPaymentIcon = (method: string) => {
+    switch (method) {
+      case 'cash': return <Banknote className="h-3 w-3 mr-1" />
+      case 'transfer': return <Smartphone className="h-3 w-3 mr-1" />
+      case 'pos': return <CreditCard className="h-3 w-3 mr-1" />
+      default: return null
+    }
+  }
+
   const getChannelLabel = (channel: string) => {
     switch (channel) {
       case 'in_store': return 'In Store'
@@ -73,31 +82,44 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
     }
   }
 
+  const getChannelIcon = (channel: string) => {
+    switch (channel) {
+      case 'in_store': return <Store className="h-3 w-3 mr-1" />
+      case 'online': return <Globe className="h-3 w-3 mr-1" />
+      default: return null
+    }
+  }
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="space-y-8">
+      <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between bg-card/40 backdrop-blur-xl p-6 rounded-2xl border border-white/10 shadow-lg">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Sales</h2>
-          <p className="text-muted-foreground">
+          <h2 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent neon-text">Sales</h2>
+          <p className="text-muted-foreground mt-1">
             View sales history and create new sales
           </p>
         </div>
-        <Button asChild>
+        <Button asChild variant="neon" size="lg" className="shadow-lg shadow-primary/20">
           <Link href="/sales/new">
-            <Plus className="mr-2 h-4 w-4" />
+            <Plus className="mr-2 h-5 w-5" />
             New Sale
           </Link>
         </Button>
       </div>
 
-      <Suspense fallback={null}>
-        <SearchInput placeholder="Search by sale # or customer name..." className="max-w-sm" />
-      </Suspense>
+      <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
+        <Suspense fallback={null}>
+          <div className="relative w-full max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <SearchInput placeholder="Search by sale # or customer..." className="pl-10 bg-white/5 border-white/10 focus:border-primary/50 text-white w-full" />
+          </div>
+        </Suspense>
+      </div>
 
-      <Card>
+      <Card className="glass border-white/10 overflow-hidden">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <ShoppingCart className="h-5 w-5" />
+            <ShoppingCart className="h-5 w-5 text-primary" />
             Recent Sales
           </CardTitle>
           <CardDescription>
@@ -107,12 +129,12 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
         </CardHeader>
         <CardContent>
           {filteredSales.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <p className="text-muted-foreground mb-4">
+            <div className="flex flex-col items-center justify-center py-16 text-center bg-white/5 rounded-xl border border-white/5 border-dashed m-4">
+              <p className="text-muted-foreground mb-6 text-lg">
                 {searchQuery ? 'No sales match your search' : 'No sales recorded yet'}
               </p>
               {!searchQuery && (
-                <Button asChild>
+                <Button asChild variant="neon">
                   <Link href="/sales/new">
                     <Plus className="mr-2 h-4 w-4" />
                     Record Your First Sale
@@ -121,52 +143,56 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
               )}
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Sale #</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Customer</TableHead>
-                  <TableHead>Channel</TableHead>
-                  <TableHead>Payment</TableHead>
-                  <TableHead className="text-right">Total</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredSales.map((sale: Sale & { customer: { name: string } | null }) => (
-                  <TableRow key={sale.id}>
-                    <TableCell className="font-medium font-mono">
-                      {sale.sale_number}
-                    </TableCell>
-                    <TableCell>
-                      {format(new Date(sale.sale_date), 'MMM d, yyyy')}
-                    </TableCell>
-                    <TableCell>{sale.customer?.name || 'Walk-in'}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline">
-                        {getChannelLabel(sale.sales_channel)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={getPaymentBadgeVariant(sale.payment_method)}>
-                        {sale.payment_method.toUpperCase()}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right font-medium">
-                      {formatCurrency(sale.total)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="ghost" size="sm" asChild>
-                        <Link href={`/sales/${sale.id}`}>
-                          <Eye className="h-4 w-4" />
-                        </Link>
-                      </Button>
-                    </TableCell>
+            <div className="relative w-full overflow-auto">
+              <Table>
+                <TableHeader className="bg-white/5">
+                  <TableRow className="border-white/10 hover:bg-transparent">
+                    <TableHead className="text-white/70">Sale #</TableHead>
+                    <TableHead className="text-white/70">Date</TableHead>
+                    <TableHead className="text-white/70">Customer</TableHead>
+                    <TableHead className="text-white/70">Channel</TableHead>
+                    <TableHead className="text-white/70">Payment</TableHead>
+                    <TableHead className="text-right text-white/70">Total</TableHead>
+                    <TableHead className="text-right text-white/70">Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {filteredSales.map((sale: Sale & { customer: { name: string } | null }) => (
+                    <TableRow key={sale.id} className="border-white/10 hover:bg-white/5 transition-colors group">
+                      <TableCell className="font-medium font-mono text-primary group-hover:text-primary/80 transition-colors">
+                        {sale.sale_number}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {format(new Date(sale.sale_date), 'MMM d, yyyy')}
+                      </TableCell>
+                      <TableCell className="font-medium text-white">{sale.customer?.name || 'Walk-in'}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="border-white/20 flex w-fit items-center">
+                          {getChannelIcon(sale.sales_channel)}
+                          {getChannelLabel(sale.sales_channel)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={getPaymentBadgeVariant(sale.payment_method)} className="flex w-fit items-center">
+                          {getPaymentIcon(sale.payment_method)}
+                          {sale.payment_method.toUpperCase()}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right font-bold text-white text-lg">
+                        {formatCurrency(sale.total)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button variant="ghost" size="sm" asChild className="hover:bg-primary/20 hover:text-primary">
+                          <Link href={`/sales/${sale.id}`}>
+                            <Eye className="h-4 w-4" />
+                          </Link>
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           )}
         </CardContent>
       </Card>
