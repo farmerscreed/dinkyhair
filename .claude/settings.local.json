@@ -16,7 +16,8 @@
       "mcp__plugin_supabase_supabase__apply_migration",
       "Bash(npm run build:*)",
       "mcp__plugin_supabase_supabase__get_advisors",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nfeat: implement Phase 1 foundation\n\n- Install core dependencies \\(Supabase, shadcn/ui, lucide, date-fns, zod, recharts\\)\n- Setup shadcn/ui with button, input, card, label, select, dialog, dropdown-menu, tabs, sonner, form, table, badge components\n- Configure Supabase client \\(browser, server, middleware\\)\n- Create database schema with 12 tables \\(profiles, suppliers, wig_makers, categories, batches, products, productions, customers, sales, sale_items, exchange_rates, settings\\)\n- Setup RLS policies for owner/staff access control\n- Create auth triggers for new user handling and auto-timestamps\n- Implement dashboard layout with responsive sidebar, header, and mobile nav\n- Add login and signup pages with Supabase Auth\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")"
     ]
   }
 }
