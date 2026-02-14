@@ -9,7 +9,14 @@
       "Bash(xcopy:*)",
       "Bash(timeout 15 npm run dev)",
       "Bash(npm install)",
-      "mcp__plugin_supabase_supabase__list_tables"
+      "mcp__plugin_supabase_supabase__list_tables",
+      "Bash(npm install:*)",
+      "Bash(npx shadcn@latest init -y -d)",
+      "Bash(npx shadcn@latest add:*)",
+      "mcp__plugin_supabase_supabase__apply_migration",
+      "Bash(npm run build:*)",
+      "mcp__plugin_supabase_supabase__get_advisors",
+      "Bash(git add:*)"
     ]
   }
 }
