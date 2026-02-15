@@ -77,6 +77,14 @@ export interface Product {
   reorder_level: number
   image_url: string | null
   is_active: boolean
+  // Hair attributes for SKU
+  hair_origin: string | null
+  hair_texture: string | null
+  hair_length: number | null
+  hair_color: string | null
+  hair_form: string | null
+  hair_form_size: string | null
+  hair_wig_name: string | null
   created_at: string
   updated_at: string
   category?: Category
