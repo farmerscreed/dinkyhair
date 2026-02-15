@@ -3,6 +3,7 @@ export type ProductType = 'raw_material' | 'finished_product'
 export type ProductionStatus = 'pending' | 'in_progress' | 'completed' | 'cancelled'
 export type PaymentMethod = 'cash' | 'transfer' | 'pos' | 'credit'
 export type SalesChannel = 'in_store' | 'online' | 'wholesale'
+export type BatchStatus = 'draft' | 'received'
 
 export interface Profile {
   id: string
@@ -56,10 +57,24 @@ export interface Batch {
   total_cost_usd: number | null
   exchange_rate: number | null
   total_cost_ngn: number | null
+  status: BatchStatus
   notes: string | null
   created_at: string
   updated_at: string
   supplier?: Supplier
+  items?: BatchItem[]
+}
+
+export interface BatchItem {
+  id: string
+  batch_id: string
+  product_id: string
+  quantity: number
+  unit_cost_usd: number
+  total_cost_usd: number
+  created_at: string
+  updated_at: string
+  product?: Product
 }
 
 export interface Product {
@@ -69,7 +84,6 @@ export interface Product {
   description: string | null
   product_type: ProductType
   category_id: string | null
-  batch_id: string | null
   cost_price_usd: number | null
   cost_price_ngn: number | null
   selling_price: number | null
@@ -88,7 +102,6 @@ export interface Product {
   created_at: string
   updated_at: string
   category?: Category
-  batch?: Batch
 }
 
 export interface Production {
@@ -102,11 +115,31 @@ export interface Production {
   actual_completion: string | null
   labor_cost: number | null
   materials_used: Record<string, unknown> | null
+  total_material_cost: number | null
+  total_production_cost: number | null
+  recommended_selling_price: number | null
   notes: string | null
   created_at: string
   updated_at: string
   wig_maker?: WigMaker
   product?: Product
+  materials?: ProductionMaterial[]
+}
+
+export interface ProductionMaterial {
+  id: string
+  production_id: string
+  product_id: string
+  quantity: number
+  unit_cost: number
+  total_cost: number
+  created_at: string
+  product?: Product
+}
+
+export interface ProfitMargins {
+  default: number
+  [categoryId: string]: number
 }
 
 export interface Customer {

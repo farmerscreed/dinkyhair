@@ -3,6 +3,14 @@
 import React, { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { SalesChart } from './_components/sales-chart'
 import { TopProductsChart } from './_components/top-products-chart'
@@ -30,7 +38,10 @@ export default function ReportsPage() {
     salesChartData: [],
     topProducts: [],
     productionByStatus: {},
-    totalLaborCost: 0
+    totalLaborCost: 0,
+    monthCost: 0,
+    monthProfit: 0,
+    profitByProduct: [],
   })
 
   useEffect(() => {
@@ -48,6 +59,7 @@ export default function ReportsPage() {
         lastMonthSales,
         allSales,
         saleItems,
+        monthSaleItems,
         productions,
         customerRes,
         productRes
@@ -56,6 +68,7 @@ export default function ReportsPage() {
         supabase.from('sales').select('total').gte('sale_date', startOfLastMonth.toISOString()).lte('sale_date', endOfLastMonth.toISOString()),
         supabase.from('sales').select('total, sale_date').gte('sale_date', sixMonthsAgo.toISOString()).order('sale_date'),
         supabase.from('sale_items').select('quantity, products(name)').gte('created_at', sixMonthsAgo.toISOString()),
+        supabase.from('sale_items').select('quantity, unit_price, total_price, product:products(name, cost_price_ngn), sale:sales!inner(sale_date)').gte('sale.sale_date', startOfCurrentMonth.toISOString()).lte('sale.sale_date', endOfCurrentMonth.toISOString()),
         supabase.from('productions').select('status, labor_cost'),
         supabase.from('customers').select('*', { count: 'exact', head: true }),
         supabase.from('products').select('*', { count: 'exact', head: true }).eq('is_active', true)
@@ -100,6 +113,26 @@ export default function ReportsPage() {
 
       const totalLaborCost = productions.data?.reduce((sum, p) => sum + (p.labor_cost || 0), 0) || 0
 
+      // Profit calculations
+      const monthCost = (monthSaleItems.data as any[])?.reduce((sum: number, item: any) => {
+        const costPrice = item.product?.cost_price_ngn || 0
+        return sum + (costPrice * item.quantity)
+      }, 0) || 0
+      const monthProfit = currentMonthTotal - monthCost
+
+      // Profit by product
+      const profitByProductMap: Record<string, { revenue: number; cost: number }> = {}
+      ;(monthSaleItems.data as any[])?.forEach((item: any) => {
+        const name = item.product?.name || 'Unknown'
+        if (!profitByProductMap[name]) profitByProductMap[name] = { revenue: 0, cost: 0 }
+        profitByProductMap[name].revenue += item.total_price || (item.unit_price * item.quantity)
+        profitByProductMap[name].cost += (item.product?.cost_price_ngn || 0) * item.quantity
+      })
+      const profitByProduct = Object.entries(profitByProductMap)
+        .map(([name, { revenue, cost }]) => ({ name, revenue, cost, profit: revenue - cost }))
+        .sort((a, b) => b.profit - a.profit)
+        .slice(0, 10)
+
       setData({
         currentMonthTotal,
         salesGrowth,
@@ -110,7 +143,10 @@ export default function ReportsPage() {
         salesChartData,
         topProducts,
         productionByStatus,
-        totalLaborCost
+        totalLaborCost,
+        monthCost,
+        monthProfit,
+        profitByProduct,
       })
       setLoading(false)
     }
@@ -240,6 +276,7 @@ export default function ReportsPage() {
             <TabsTrigger value="sales" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary">Sales</TabsTrigger>
             <TabsTrigger value="products" className="data-[state=active]:bg-secondary/20 data-[state=active]:text-secondary">Products</TabsTrigger>
             <TabsTrigger value="production" className="data-[state=active]:bg-accent/20 data-[state=active]:text-accent">Production</TabsTrigger>
+            <TabsTrigger value="profitability" className="data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-400">Profitability</TabsTrigger>
           </TabsList>
 
           <TabsContent value="sales" className="space-y-4">
@@ -272,6 +309,81 @@ export default function ReportsPage() {
               totalLaborCost={data.totalLaborCost}
               formatCurrency={formatCurrency}
             />
+          </TabsContent>
+
+          <TabsContent value="profitability" className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-3">
+              <Card className="glass border-l-4 border-l-primary">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Revenue</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-white">{formatCurrency(data.currentMonthTotal)}</div>
+                  <p className="text-xs text-muted-foreground mt-1">This month</p>
+                </CardContent>
+              </Card>
+              <Card className="glass border-l-4 border-l-orange-500">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Cost of Goods</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-white">{formatCurrency(data.monthCost)}</div>
+                  <p className="text-xs text-muted-foreground mt-1">This month</p>
+                </CardContent>
+              </Card>
+              <Card className="glass border-l-4 border-l-emerald-500">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Gross Profit</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className={`text-2xl font-bold ${data.monthProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {formatCurrency(data.monthProfit)}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {data.currentMonthTotal > 0 ? `${(data.monthProfit / data.currentMonthTotal * 100).toFixed(1)}% margin` : 'No sales'}
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+
+            <Card className="glass">
+              <CardHeader>
+                <CardTitle>Profit by Product</CardTitle>
+                <CardDescription>Top products by profit this month</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {data.profitByProduct.length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-8 text-center">No sales data for this month</p>
+                ) : (
+                  <Table>
+                    <TableHeader className="bg-white/5">
+                      <TableRow className="border-white/10 hover:bg-transparent">
+                        <TableHead className="text-white/60">Product</TableHead>
+                        <TableHead className="text-right text-white/60">Revenue</TableHead>
+                        <TableHead className="text-right text-white/60">Cost</TableHead>
+                        <TableHead className="text-right text-white/60">Profit</TableHead>
+                        <TableHead className="text-right text-white/60">Margin</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {data.profitByProduct.map((product: any) => (
+                        <TableRow key={product.name} className="border-white/10 hover:bg-white/5">
+                          <TableCell className="font-medium text-white">{product.name}</TableCell>
+                          <TableCell className="text-right text-white/80">{formatCurrency(product.revenue)}</TableCell>
+                          <TableCell className="text-right text-white/60">{formatCurrency(product.cost)}</TableCell>
+                          <TableCell className={`text-right font-semibold ${product.profit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                            {formatCurrency(product.profit)}
+                          </TableCell>
+                          <TableCell className="text-right text-white/60">
+                            {product.revenue > 0 ? `${(product.profit / product.revenue * 100).toFixed(0)}%` : '-'}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </motion.div>

@@ -21,7 +21,7 @@ import type { Production, ProductionStatus } from '@/lib/supabase/types'
 import { motion } from 'framer-motion'
 
 export default function ProductionPage() {
-  const [productions, setProductions] = useState<(Production & { wig_maker: { name: string } | null; product: { name: string } | null })[]>([])
+  const [productions, setProductions] = useState<(Production & { wig_maker: { name: string } | null; product: { name: string } | null; material_count: number })[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -29,17 +29,24 @@ export default function ProductionPage() {
       const supabase = createClient()
       const { data, error } = await supabase
         .from('productions')
-        .select('*, wig_maker:wig_makers(name), product:products(name)')
+        .select('*, wig_maker:wig_makers(name), product:products(name), production_materials(id)')
         .order('created_at', { ascending: false })
 
-      if (data) setProductions(data as any)
+      if (data) {
+        const mapped = data.map((p: any) => ({
+          ...p,
+          material_count: p.production_materials?.length || 0,
+          production_materials: undefined,
+        }))
+        setProductions(mapped)
+      }
       setLoading(false)
     }
     fetchProductions()
   }, [])
 
   const formatCurrency = (amount: number | null) => {
-    if (amount === null) return '-'
+    if (amount === null || amount === undefined) return '-'
     return new Intl.NumberFormat('en-NG', {
       style: 'currency',
       currency: 'NGN',
@@ -207,9 +214,9 @@ export default function ProductionPage() {
                           <TableHead className="text-white/60">Product</TableHead>
                           <TableHead className="text-white/60">Wig Maker</TableHead>
                           <TableHead className="text-white/60">Status</TableHead>
-                          <TableHead className="text-white/60">Start Date</TableHead>
-                          <TableHead className="text-white/60">Expected</TableHead>
-                          <TableHead className="text-right text-white/60">Labor Cost</TableHead>
+                          <TableHead className="text-white/60 text-center">Materials</TableHead>
+                          <TableHead className="text-right text-white/60">Total Cost</TableHead>
+                          <TableHead className="text-right text-white/60">Rec. Price</TableHead>
                           <TableHead className="text-right text-white/60 pr-6">Actions</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -222,18 +229,16 @@ export default function ProductionPage() {
                             <TableCell className="font-medium text-white/90">{production.product?.name || '-'}</TableCell>
                             <TableCell className="text-white/80">{production.wig_maker?.name || 'Unassigned'}</TableCell>
                             <TableCell>{getStatusBadge(production.status)}</TableCell>
-                            <TableCell className="text-white/70">
-                              {production.start_date
-                                ? format(new Date(production.start_date), 'MMM d, yyyy')
-                                : '-'}
-                            </TableCell>
-                            <TableCell className="text-white/70">
-                              {production.expected_completion
-                                ? format(new Date(production.expected_completion), 'MMM d, yyyy')
-                                : '-'}
+                            <TableCell className="text-center">
+                              <Badge variant="outline" className="text-xs">
+                                {production.material_count}
+                              </Badge>
                             </TableCell>
                             <TableCell className="text-right text-white/80 font-mono">
-                              {formatCurrency(production.labor_cost)}
+                              {formatCurrency(production.total_production_cost)}
+                            </TableCell>
+                            <TableCell className="text-right text-emerald-400 font-mono">
+                              {formatCurrency(production.recommended_selling_price)}
                             </TableCell>
                             <TableCell className="text-right pr-6">
                               <Button variant="ghost" size="icon-sm" asChild className="hover:bg-white/10 hover:text-primary">

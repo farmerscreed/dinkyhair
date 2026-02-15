@@ -309,7 +309,7 @@ export function ProductForm({ product, categories }: ProductFormProps) {
                       </SelectTrigger>
                       <SelectContent>
                         {filteredCategories.length === 0 ? (
-                          <SelectItem value="" disabled>
+                          <SelectItem value="none" disabled>
                             No categories for this type
                           </SelectItem>
                         ) : (

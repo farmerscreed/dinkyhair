@@ -49,7 +49,7 @@ const navigation: (NavItem | NavGroup)[] = [
     gradient: 'from-violet-500 to-purple-600',
     children: [
       { name: 'Inventory', href: '/inventory', icon: Package },
-      { name: 'Batches', href: '/inventory/batches', icon: Boxes },
+      { name: 'Purchase Orders', href: '/inventory/purchase-orders', icon: Boxes },
       { name: 'Categories', href: '/inventory/categories', icon: Tags },
     ],
   },

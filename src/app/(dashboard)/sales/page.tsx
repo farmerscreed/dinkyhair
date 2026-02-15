@@ -25,10 +25,10 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
   const { q: searchQuery } = await searchParams
   const supabase = await createClient()
 
-  // First get all sales with customer data
+  // Get all sales with customer data and sale items for profit calculation
   const { data: sales, error } = await supabase
     .from('sales')
-    .select('*, customer:customers(name)')
+    .select('*, customer:customers(name), sale_items(quantity, unit_price, product:products(cost_price_ngn))')
     .order('sale_date', { ascending: false })
     .limit(100)
 
@@ -71,6 +71,15 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
       case 'pos': return <CreditCard className="h-3 w-3 mr-1" />
       default: return null
     }
+  }
+
+  const calculateProfit = (sale: any) => {
+    if (!sale.sale_items || sale.sale_items.length === 0) return null
+    const costOfGoods = sale.sale_items.reduce((sum: number, item: any) => {
+      const costPrice = item.product?.cost_price_ngn || 0
+      return sum + (costPrice * item.quantity)
+    }, 0)
+    return sale.total - costOfGoods
   }
 
   const getChannelLabel = (channel: string) => {
@@ -153,6 +162,7 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
                     <TableHead className="text-white/70">Channel</TableHead>
                     <TableHead className="text-white/70">Payment</TableHead>
                     <TableHead className="text-right text-white/70">Total</TableHead>
+                    <TableHead className="text-right text-white/70">Profit</TableHead>
                     <TableHead className="text-right text-white/70">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -180,6 +190,17 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
                       </TableCell>
                       <TableCell className="text-right font-bold text-white text-lg">
                         {formatCurrency(sale.total)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {(() => {
+                          const profit = calculateProfit(sale)
+                          if (profit === null) return <span className="text-muted-foreground">-</span>
+                          return (
+                            <span className={profit >= 0 ? 'text-emerald-400 font-semibold' : 'text-red-400 font-semibold'}>
+                              {formatCurrency(profit)}
+                            </span>
+                          )
+                        })()}
                       </TableCell>
                       <TableCell className="text-right">
                         <Button variant="ghost" size="sm" asChild className="hover:bg-primary/20 hover:text-primary">

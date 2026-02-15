@@ -40,7 +40,7 @@ export function SaleForm({ products, customers }: SaleFormProps) {
   const [loading, setLoading] = useState(false)
   const [cart, setCart] = useState<CartItem[]>([])
   const [searchTerm, setSearchTerm] = useState('')
-  const [customerId, setCustomerId] = useState('')
+  const [customerId, setCustomerId] = useState('walk-in')
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash')
   const [salesChannel, setSalesChannel] = useState<SalesChannel>('in_store')
   const [discount, setDiscount] = useState('')
@@ -56,8 +56,10 @@ export function SaleForm({ products, customers }: SaleFormProps) {
   }, [products, searchTerm])
 
   const subtotal = cart.reduce((sum, item) => sum + item.total_price, 0)
+  const totalCost = cart.reduce((sum, item) => sum + (item.product.cost_price_ngn || 0) * item.quantity, 0)
   const discountAmount = parseFloat(discount) || 0
   const total = subtotal - discountAmount
+  const totalProfit = total - totalCost
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-NG', {
@@ -137,7 +139,7 @@ export function SaleForm({ products, customers }: SaleFormProps) {
       const { data: sale, error: saleError } = await supabase
         .from('sales')
         .insert({
-          customer_id: customerId || null,
+          customer_id: customerId !== 'walk-in' ? customerId : null,
           subtotal,
           discount: discountAmount,
           total,
@@ -178,7 +180,7 @@ export function SaleForm({ products, customers }: SaleFormProps) {
         }
       }
 
-      if (customerId) {
+      if (customerId && customerId !== 'walk-in') {
         const customer = customers.find(c => c.id === customerId)
         if (customer) {
           await supabase
@@ -290,6 +292,9 @@ export function SaleForm({ products, customers }: SaleFormProps) {
                       <div className="flex-1 min-w-0 pr-4">
                         <h4 className="font-medium text-sm truncate mb-1">{item.product.name}</h4>
                         <p className="text-xs text-muted-foreground">{formatCurrency(item.unit_price)} × {item.quantity}</p>
+                        <p className="text-xs text-emerald-400/70">
+                          Profit: {formatCurrency((item.unit_price - (item.product.cost_price_ngn || 0)) * item.quantity)}
+                        </p>
                       </div>
 
                       <div className="flex items-center gap-3">
@@ -326,11 +331,11 @@ export function SaleForm({ products, customers }: SaleFormProps) {
                   <SelectTrigger className="bg-white/5 border-white/10 h-9 text-xs">
                     <div className="flex items-center truncate">
                       <User className="h-3 w-3 mr-2 opacity-70" />
-                      <span className="truncate">{customerId ? customers.find(c => c.id === customerId)?.name : "Walk-in Customer"}</span>
+                      <span className="truncate">{customerId && customerId !== 'walk-in' ? customers.find(c => c.id === customerId)?.name : "Walk-in Customer"}</span>
                     </div>
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Walk-in Customer</SelectItem>
+                    <SelectItem value="walk-in">Walk-in Customer</SelectItem>
                     {customers.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
@@ -367,6 +372,15 @@ export function SaleForm({ products, customers }: SaleFormProps) {
                 <span>Total</span>
                 <span className="text-primary tracking-tight">{formatCurrency(total)}</span>
               </div>
+
+              {cart.length > 0 && (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-emerald-400/70">Est. Profit</span>
+                  <span className={cn("font-semibold", totalProfit >= 0 ? "text-emerald-400" : "text-red-400")}>
+                    {formatCurrency(totalProfit)}
+                  </span>
+                </div>
+              )}
             </div>
 
             <Button

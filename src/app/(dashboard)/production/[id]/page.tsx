@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { ProductionForm } from '../_components/production-form'
+import type { ProfitMargins } from '@/lib/supabase/types'
 
 interface EditProductionPageProps {
   params: Promise<{ id: string }>
@@ -10,14 +11,24 @@ export default async function EditProductionPage({ params }: EditProductionPageP
   const { id } = await params
   const supabase = await createClient()
 
-  const [productionResult, wigMakersResult, productsResult] = await Promise.all([
+  const [productionResult, materialsResult, wigMakersResult, productsResult, rawMaterialsResult, settingsResult] = await Promise.all([
     supabase.from('productions').select('*').eq('id', id).single(),
+    supabase.from('production_materials').select('*, product:products(*)').eq('production_id', id),
     supabase.from('wig_makers').select('*').eq('is_active', true).order('name'),
     supabase.from('products').select('*').eq('product_type', 'finished_product').eq('is_active', true).order('name'),
+    supabase.from('products').select('*').eq('product_type', 'raw_material').eq('is_active', true).order('name'),
+    supabase.from('settings').select('*').eq('key', 'profit_margins').single(),
   ])
 
   if (productionResult.error || !productionResult.data) {
     notFound()
+  }
+
+  const profitMargins: ProfitMargins = (settingsResult.data?.value as ProfitMargins) || { default: 50 }
+
+  const productionWithMaterials = {
+    ...productionResult.data,
+    materials: materialsResult.data || [],
   }
 
   return (
@@ -32,9 +43,11 @@ export default async function EditProductionPage({ params }: EditProductionPageP
       </div>
 
       <ProductionForm
-        production={productionResult.data}
+        production={productionWithMaterials}
         wigMakers={wigMakersResult.data || []}
         products={productsResult.data || []}
+        rawMaterials={rawMaterialsResult.data || []}
+        profitMargins={profitMargins}
       />
     </div>
   )

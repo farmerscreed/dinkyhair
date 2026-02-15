@@ -6,12 +6,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ExchangeRateSettings } from './_components/exchange-rate-settings'
 import { BusinessSettings } from './_components/business-settings'
 import { ProfileSettings } from './_components/profile-settings'
+import { ProfitMarginSettings } from './_components/profit-margin-settings'
 import { motion } from 'framer-motion'
+import type { ProfitMargins } from '@/lib/supabase/types'
 
 export default function SettingsPage() {
   const [profile, setProfile] = useState<any>(null)
   const [exchangeRates, setExchangeRates] = useState<any[]>([])
   const [settings, setSettings] = useState<any[]>([])
+  const [categories, setCategories] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -19,15 +22,17 @@ export default function SettingsPage() {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
 
-      const [profileRes, exchangeRes, settingsRes] = await Promise.all([
+      const [profileRes, exchangeRes, settingsRes, categoriesRes] = await Promise.all([
         supabase.from('profiles').select('*').eq('id', user?.id).single(),
         supabase.from('exchange_rates').select('*').order('effective_date', { ascending: false }).limit(10),
-        supabase.from('settings').select('*')
+        supabase.from('settings').select('*'),
+        supabase.from('categories').select('*').order('name'),
       ])
 
       setProfile(profileRes.data)
       setExchangeRates(exchangeRes.data || [])
       setSettings(settingsRes.data || [])
+      setCategories(categoriesRes.data || [])
       setLoading(false)
     }
     fetchData()
@@ -36,6 +41,7 @@ export default function SettingsPage() {
   const businessName = settings?.find(s => s.key === 'business_name')?.value?.name || ''
   const businessAddress = settings?.find(s => s.key === 'business_address')?.value?.address || ''
   const businessPhone = settings?.find(s => s.key === 'business_phone')?.value?.phone || ''
+  const profitMargins: ProfitMargins = (settings?.find(s => s.key === 'profit_margins')?.value as ProfitMargins) || { default: 50 }
 
   const container = {
     hidden: { opacity: 0 },
@@ -80,6 +86,7 @@ export default function SettingsPage() {
             <TabsTrigger value="profile" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary flex-1 sm:flex-none">Profile</TabsTrigger>
             <TabsTrigger value="business" className="data-[state=active]:bg-secondary/20 data-[state=active]:text-secondary flex-1 sm:flex-none">Business</TabsTrigger>
             <TabsTrigger value="exchange" className="data-[state=active]:bg-accent/20 data-[state=active]:text-accent flex-1 sm:flex-none">Exchange Rates</TabsTrigger>
+            <TabsTrigger value="margins" className="data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-400 flex-1 sm:flex-none">Profit Margins</TabsTrigger>
           </TabsList>
 
           <TabsContent value="profile" className="space-y-4">
@@ -101,6 +108,12 @@ export default function SettingsPage() {
           <TabsContent value="exchange" className="space-y-4">
             <div className="glass p-6 rounded-xl border border-white/10">
               <ExchangeRateSettings exchangeRates={exchangeRates || []} />
+            </div>
+          </TabsContent>
+
+          <TabsContent value="margins" className="space-y-4">
+            <div className="glass p-6 rounded-xl border border-white/10">
+              <ProfitMarginSettings categories={categories} profitMargins={profitMargins} />
             </div>
           </TabsContent>
         </Tabs>

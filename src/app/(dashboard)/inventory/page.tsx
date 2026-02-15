@@ -69,9 +69,9 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
         </div>
         <div className="flex flex-col sm:flex-row gap-3">
           <Button variant="outline" asChild className="border-white/10 hover:bg-white/5">
-            <Link href="/inventory/batches">
+            <Link href="/inventory/purchase-orders">
               <Boxes className="mr-2 h-4 w-4" />
-              Batches
+              Purchase Orders
             </Link>
           </Button>
           <Button variant="outline" asChild className="border-white/10 hover:bg-white/5">
@@ -192,7 +192,9 @@ function ProductTable({
                   <TableHead className="text-white/70">Category</TableHead>
                   <TableHead className="text-white/70">Type</TableHead>
                   <TableHead className="text-right text-white/70">Stock</TableHead>
+                  <TableHead className="text-right text-white/70">Cost</TableHead>
                   <TableHead className="text-right text-white/70">Price</TableHead>
+                  <TableHead className="text-right text-white/70">Margin</TableHead>
                   <TableHead className="text-white/70">Status</TableHead>
                   <TableHead className="text-right text-white/70">Actions</TableHead>
                 </TableRow>
@@ -238,8 +240,20 @@ function ProductTable({
                         {product.quantity_in_stock}
                       </span>
                     </TableCell>
+                    <TableCell className="text-right text-muted-foreground">
+                      {formatCurrency(product.cost_price_ngn)}
+                    </TableCell>
                     <TableCell className="text-right font-medium text-white">
                       {formatCurrency(product.selling_price)}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {product.cost_price_ngn && product.selling_price ? (
+                        <span className={((product.selling_price - product.cost_price_ngn) / product.cost_price_ngn * 100) >= 0 ? 'text-emerald-400 font-semibold' : 'text-red-400 font-semibold'}>
+                          {((product.selling_price - product.cost_price_ngn) / product.cost_price_ngn * 100).toFixed(0)}%
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
                     </TableCell>
                     <TableCell>
                       <Badge variant={product.is_active ? 'default' : 'secondary'} className={product.is_active ? "bg-primary/20 text-primary-foreground border-primary/20" : "bg-white/10 text-muted-foreground"}>

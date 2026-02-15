@@ -20,7 +20,13 @@
       "Bash(git commit -m \"$\\(cat <<''EOF''\nfeat: implement Phase 1 foundation\n\n- Install core dependencies \\(Supabase, shadcn/ui, lucide, date-fns, zod, recharts\\)\n- Setup shadcn/ui with button, input, card, label, select, dialog, dropdown-menu, tabs, sonner, form, table, badge components\n- Configure Supabase client \\(browser, server, middleware\\)\n- Create database schema with 12 tables \\(profiles, suppliers, wig_makers, categories, batches, products, productions, customers, sales, sale_items, exchange_rates, settings\\)\n- Setup RLS policies for owner/staff access control\n- Create auth triggers for new user handling and auto-timestamps\n- Implement dashboard layout with responsive sidebar, header, and mobile nav\n- Add login and signup pages with Supabase Auth\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
       "Bash(git commit -m \"$\\(cat <<''EOF''\nfeat: implement Phase 3 - Sales & Production\n\nSales Module:\n- Sales list with filtering by date\n- POS-style new sale form with cart functionality\n- Product selection with stock checking\n- Customer selection \\(optional walk-in\\)\n- Payment method and sales channel selection\n- Discount support\n- Automatic stock reduction on sale\n- Sale detail view with itemized receipt\n\nProduction Module:\n- Production orders list with status tabs\n- Stats cards \\(pending, in progress, completed\\)\n- Create/edit production orders\n- Assign wig makers to orders\n- Status tracking \\(pending -> in_progress -> completed\\)\n- Timeline tracking \\(start, expected, actual completion\\)\n- Auto-increment stock when production completed\n\nBug Fix:\n- Fixed auth trigger to use proper schema qualification\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
       "mcp__plugin_supabase_supabase__execute_sql",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(ls:*)",
+      "Bash(grep:*)",
+      "mcp__supabase__list_projects",
+      "mcp__supabase__list_tables",
+      "mcp__supabase__list_migrations",
+      "mcp__supabase__apply_migration"
     ]
   }
 }

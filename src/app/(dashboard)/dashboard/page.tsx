@@ -28,6 +28,8 @@ export default function DashboardPage() {
     todaySalesCount: number
     todaySalesTotal: number
     monthRevenue: number
+    monthCost: number
+    monthProfit: number
     activeProductions: number
     lowStockProducts: Product[]
     recentSales: (Sale & { customer: { name: string } | null })[]
@@ -37,6 +39,8 @@ export default function DashboardPage() {
     todaySalesCount: 0,
     todaySalesTotal: 0,
     monthRevenue: 0,
+    monthCost: 0,
+    monthProfit: 0,
     activeProductions: 0,
     lowStockProducts: [],
     recentSales: [],
@@ -57,6 +61,7 @@ export default function DashboardPage() {
         productsResult,
         todaySalesResult,
         monthSalesResult,
+        monthSaleItemsResult,
         productionResult,
         recentSalesResult,
         lowStockResult,
@@ -65,6 +70,7 @@ export default function DashboardPage() {
         supabase.from('products').select('*', { count: 'exact', head: true }).eq('is_active', true),
         supabase.from('sales').select('total').gte('sale_date', todayStart.toISOString()).lte('sale_date', todayEnd.toISOString()),
         supabase.from('sales').select('total').gte('sale_date', monthStart.toISOString()).lte('sale_date', monthEnd.toISOString()),
+        supabase.from('sale_items').select('quantity, product:products(cost_price_ngn), sale:sales!inner(sale_date)').gte('sale.sale_date', monthStart.toISOString()).lte('sale.sale_date', monthEnd.toISOString()),
         supabase.from('productions').select('*', { count: 'exact', head: true }).in('status', ['pending', 'in_progress']),
         supabase.from('sales').select('*, customer:customers(name)').order('sale_date', { ascending: false }).limit(5),
         supabase.from('products').select('*').eq('is_active', true).order('quantity_in_stock').limit(10),
@@ -90,11 +96,20 @@ export default function DashboardPage() {
 
       const chartData = Array.from(chartDataMap.entries()).map(([name, total]) => ({ name, total }))
 
+      const monthRevenue = monthSalesResult.data?.reduce((sum, s) => sum + s.total, 0) || 0
+      const monthCost = (monthSaleItemsResult.data as any[])?.reduce((sum: number, item: any) => {
+        const costPrice = item.product?.cost_price_ngn || 0
+        return sum + (costPrice * item.quantity)
+      }, 0) || 0
+      const monthProfit = monthRevenue - monthCost
+
       setData({
         productsCount: productsResult.count || 0,
         todaySalesCount: todaySalesResult.data?.length || 0,
         todaySalesTotal: todaySalesResult.data?.reduce((sum, s) => sum + s.total, 0) || 0,
-        monthRevenue: monthSalesResult.data?.reduce((sum, s) => sum + s.total, 0) || 0,
+        monthRevenue,
+        monthCost,
+        monthProfit,
         activeProductions: productionResult.count || 0,
         lowStockProducts: lowStock,
         recentSales: (recentSalesResult.data as any) || [],
@@ -230,6 +245,44 @@ export default function DashboardPage() {
           </Card>
         </motion.div>
       </div>
+
+      {/* Profitability Summary */}
+      <motion.div variants={item}>
+        <Card className="glass border-emerald-500/20 bg-emerald-500/5">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-emerald-400">
+              <TrendingUp className="h-5 w-5" />
+              Monthly Profitability
+            </CardTitle>
+            <CardDescription className="text-emerald-400/60">
+              {format(new Date(), 'MMMM yyyy')} breakdown
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">Revenue</p>
+                <p className="text-xl font-bold text-white">{formatCurrency(data.monthRevenue)}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">Cost of Goods</p>
+                <p className="text-xl font-bold text-white">{formatCurrency(data.monthCost)}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">Gross Profit</p>
+                <p className={`text-xl font-bold ${data.monthProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                  {formatCurrency(data.monthProfit)}
+                  {data.monthRevenue > 0 && (
+                    <span className="text-sm ml-2 font-normal text-muted-foreground">
+                      ({(data.monthProfit / data.monthRevenue * 100).toFixed(1)}%)
+                    </span>
+                  )}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
 
       {/* Chart Section */}
       <motion.div variants={item}>
