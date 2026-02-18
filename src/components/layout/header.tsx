@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { useTheme } from 'next-themes'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -13,7 +14,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { MobileNav } from './mobile-nav'
-import { User, LogOut, Settings, Menu, Bell } from 'lucide-react'
+import { User, LogOut, Settings, Menu, Bell, Sun, Moon } from 'lucide-react'
 
 interface HeaderProps {
   user: {
@@ -26,6 +27,12 @@ export function Header({ user }: HeaderProps) {
   const router = useRouter()
   const supabase = createClient()
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
+  const { theme, setTheme } = useTheme()
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const handleSignOut = async () => {
     await supabase.auth.signOut()
@@ -35,11 +42,11 @@ export function Header({ user }: HeaderProps) {
 
   return (
     <>
-      <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-white/10 bg-background/60 backdrop-blur-md px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
+      <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b bg-background/60 backdrop-blur-md px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
         <Button
           variant="ghost"
           size="icon"
-          className="lg:hidden text-foreground hover:bg-white/10"
+          className="lg:hidden text-foreground hover:bg-accent/10"
           onClick={() => setMobileNavOpen(true)}
         >
           <Menu className="h-6 w-6" />
@@ -51,12 +58,29 @@ export function Header({ user }: HeaderProps) {
             {/* Optional: Add Breadcrumbs or Page Title here */}
           </div>
           <div className="flex items-center gap-x-4 lg:gap-x-6">
+            {/* Theme Toggle */}
+            {mounted && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-muted-foreground hover:text-primary hover:bg-primary/10"
+                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              >
+                {theme === 'dark' ? (
+                  <Sun className="h-5 w-5" />
+                ) : (
+                  <Moon className="h-5 w-5" />
+                )}
+                <span className="sr-only">Toggle theme</span>
+              </Button>
+            )}
+
             {/* Notifications */}
             <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary hover:bg-primary/10">
               <Bell className="h-5 w-5" />
             </Button>
 
-            <div className="h-6 w-px bg-white/10" aria-hidden="true" />
+            <div className="h-6 w-px bg-border" aria-hidden="true" />
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -66,7 +90,7 @@ export function Header({ user }: HeaderProps) {
                   </div>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56 glass border-white/10" align="end" forceMount>
+              <DropdownMenuContent className="w-56 glass" align="end" forceMount>
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex flex-col space-y-1">
                     <p className="text-sm font-medium leading-none text-foreground">

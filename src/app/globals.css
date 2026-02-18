@@ -49,10 +49,11 @@
 
 :root {
   /* Default to Dark Mode vars for that "Dark Mode First" feel */
-  --radius: 0.75rem; /* Slightly more rounded for modern feel */
-  
+  --radius: 0.75rem;
+  /* Slightly more rounded for modern feel */
+
   /* Deep Blue/Black Background */
-  --background: oklch(0.12 0.02 260); 
+  --background: oklch(0.12 0.02 260);
   --foreground: oklch(0.98 0.01 260);
 
   /* Glassmorphism Card Base */
@@ -133,29 +134,76 @@
   --sidebar-ring: oklch(0.65 0.25 330);
 }
 
+/* Light Mode */
+.light {
+  --background: oklch(0.98 0.01 260);
+  --foreground: oklch(0.15 0.02 260);
+  --card: oklch(1 0 0 / 0.8);
+  --card-foreground: oklch(0.15 0.02 260);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.15 0.02 260);
+  --primary: oklch(0.65 0.25 330);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.9 0.02 190);
+  --secondary-foreground: oklch(0.15 0.02 260);
+  --muted: oklch(0.95 0.01 260);
+  --muted-foreground: oklch(0.5 0.05 260);
+  --accent: oklch(0.55 0.2 290);
+  --accent-foreground: oklch(1 0 0);
+  --destructive: oklch(0.6 0.2 20);
+  --destructive-foreground: oklch(1 0 0);
+  --border: oklch(0.9 0.02 260);
+  --input: oklch(0.9 0.02 260);
+  --ring: oklch(0.65 0.25 330);
+  --sidebar: oklch(0.95 0.01 260);
+  --sidebar-foreground: oklch(0.15 0.02 260);
+  --sidebar-primary: oklch(0.65 0.25 330);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.9 0.02 260);
+  --sidebar-accent-foreground: oklch(0.15 0.02 260);
+  --sidebar-border: oklch(0.85 0.02 260);
+  --sidebar-ring: oklch(0.65 0.25 330);
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground antialiased;
-    background-image: 
-        radial-gradient(circle at 15% 50%, oklch(0.65 0.25 330 / 0.15), transparent 25%),
-        radial-gradient(circle at 85% 30%, oklch(0.55 0.2 290 / 0.15), transparent 25%);
+  }
+
+  /* Dark mode background effects */
+  .dark body {
+    background-image:
+      radial-gradient(circle at 15% 50%, oklch(0.65 0.25 330 / 0.15), transparent 25%),
+      radial-gradient(circle at 85% 30%, oklch(0.55 0.2 290 / 0.15), transparent 25%);
     background-attachment: fixed;
   }
 }
 
 @layer utilities {
   .glass {
-    @apply bg-card/60 backdrop-blur-md border border-white/10 shadow-xl;
+    @apply bg-card/60 backdrop-blur-md border shadow-xl;
   }
+
+  .dark .glass {
+    @apply border-white/10;
+  }
+
+  .light .glass {
+    @apply border-black/10;
+  }
+
   .glass-hover {
     @apply hover:bg-card/80 transition-all duration-300;
   }
+
   .neon-text {
     text-shadow: 0 0 10px var(--primary);
   }
+
   .neon-border {
     box-shadow: 0 0 10px var(--primary);
   }
@@ -166,6 +214,7 @@
   0% {
     transform: translateX(-100%);
   }
+
   100% {
     transform: translateX(200%);
   }
